@@ -82,6 +82,16 @@ func isFeature(file *[]rune, pos int) (bool, string) {
 	return false, ""
 }
 
+func shouldIgnore(c rune) bool {
+	ignore_char := [...]rune{' ', '\\', '/', '\r', '\n', '\t', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0'}
+	for l := 0; l < len(ignore_char); l++ {
+		if c == ignore_char[l] {
+			return true
+		}
+	}
+	return false
+}
+
 //Shoutout to Lex Fridman
 func lex() *Plasmid {
 
@@ -170,6 +180,16 @@ func lex() *Plasmid {
 
 		if currentWord(&file, "ORIGIN", i) {
 			look_for_features = false
+
+			var dna strings.Builder
+
+			for k := i + 6; k < len(file); k++ {
+				if s := shouldIgnore(file[k]); s != true {
+					dna.WriteRune(file[k])
+				}
+			}
+
+			plasmid.DNA = dna.String()
 		}
 
 		if look_for_features {
@@ -177,13 +197,8 @@ func lex() *Plasmid {
 			feature_found, name := isFeature(&file, i)
 			current_feature["Kind"] = strings.TrimSpace(name)
 
-			// var f_name strings.Builder
-			// var f_content strings.Builder
-			// writeName := true
-
 			if feature_found {
 
-				// write_name := true
 				for m := i + 1; m < len(file); m++ {
 
 					//If you find the next feature, break;
@@ -195,12 +210,6 @@ func lex() *Plasmid {
 					}
 
 					if string(file[m-len("                     /"):m]) == "                     /" {
-						fmt.Println(string(file[m : m+5]))
-						// for string(file[m: m+(len())])
-
-						// if (f_name.String() != string("") && f_content.String() != string("")){
-						// 	current_feature[f_name.strin]
-						// }
 						var f_name strings.Builder
 						var f_content strings.Builder
 
