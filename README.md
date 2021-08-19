@@ -23,7 +23,7 @@ func main(){
 	
     
 	plasmid := gbkToJSON.getAsPlasmidStruct(data)
-    fmt.Println(plasmid.DNA)
+	fmt.Println(plasmid.DNA)
 
 }
 ```
