@@ -1,11 +1,11 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
+	"strings"
 )
 
 type Reference struct {
@@ -27,70 +27,10 @@ type Plasmid struct {
 	DNA        string
 }
 
-type Location struct {
-	Start int
-	End   int
-}
-
-//Features
-
-type Source struct {
-	Location Location
-	Organism string
-	MolType  string
-}
-
-type Gene struct {
-	Location Location
-	Label    string
-	Note     string
-
-	/*
-		Kinds: "gene, terminator", "misc"
-	*/
-	Kind        string
-	FeatureType string
-}
-
-type Promoter struct {
-	Location    Location
-	Label       string
-	Note        string
-	Gene        string
-	FeatureType string
-}
-
-type PromoterBind struct {
-	Complement  Location
-	Label       string
-	Note        string
-	FeatureType string
-}
-
-type RepOrigin struct {
-	Complement Location
-	//Left or Right
-	Direction   string
-	Label       string
-	Note        string
-	FeatureType string
-}
-
-type CDS struct {
-	Location    Location
-	Codon_start int
-	Gene        string
-	Product     string
-	Label       string
-	Note        string
-	Translation string
-	FeatureType string
-}
-
 var (
 	feature_types = [...]string{
-		"source", "gene", "promoter", "CDS", "terminator",
-		"misc_feature", "rep_origin", "primer_bind",
+		"     source", "     gene", "     promoter", "     CDS", "     terminator",
+		"     misc_feature", "     rep_origin", "     primer_bind",
 	}
 )
 
@@ -150,6 +90,10 @@ func lex() *Plasmid {
 	string_data := getFileData("tests_reSources\\addgeneplasmid.gbk")
 
 	file := []rune(string_data)
+	all_features := []map[string]interface{}{}
+	// feature := map[string]interface{}{}
+
+	look_for_features := false
 
 	for i := 0; i < len(file); i++ {
 
@@ -221,72 +165,77 @@ func lex() *Plasmid {
 		}
 
 		if currentWord(&file, "FEATURES", i) {
+			look_for_features = true
+		}
 
-			all_features := []map[string]interface{}{}
+		if currentWord(&file, "ORIGIN", i) {
+			look_for_features = false
+		}
 
-			//TO-THINK: Are this many loops necessary? is there a better way to do it?
-			for m := i; m < len(file); m++ {
-				//If you find the DNA section, stop searching for features
-				if currentWord(&file, "ORIGIN", m) {
-					break
-				}
+		if look_for_features {
+			current_feature := map[string]interface{}{}
+			feature_found, name := isFeature(&file, i)
+			current_feature["Kind"] = strings.TrimSpace(name)
 
-				feature := map[string]interface{}{}
-				var feature_name bytes.Buffer
-				var feature_content bytes.Buffer
-				//is looping through each feature big brain? or small brain?
-				// for k := 0; k < len(feature_types); k++ {
+			// var f_name strings.Builder
+			// var f_content strings.Builder
+			// writeName := true
 
-				// 	if currentWord(&file, feature_types[k], m) {
-				// 		feature["FeatureType"] = feature_types[k]
+			if feature_found {
 
-				// 		//Before we append add its properties dude lol
+				// write_name := true
+				for m := i + 1; m < len(file); m++ {
 
-				// 		all_features = append(all_features, feature)
-				// 		feature = map[string]interface{}{}
-				// 	}
-				// }
+					//If you find the next feature, break;
+					if f, _ := isFeature(&file, m); f {
+						all_features = append(all_features, current_feature)
+						current_feature = map[string]interface{}{}
+						i = m - 1
+						break
+					}
 
-				feature_found, name := isFeature(&file, m)
+					if string(file[m-len("                     /"):m]) == "                     /" {
+						fmt.Println(string(file[m : m+5]))
+						// for string(file[m: m+(len())])
 
-				if feature_found {
-					feature["FeatureType"] = name
-					all_features = append(all_features, feature)
-					feature = map[string]interface{}{}
-				} else {
-					//TO-DO: fix this if so it skips /Qualitifier
-					if file[m] == '/' && file[m+1] != 'Q' {
-						fmt.Println(string(file[m : m+10]))
-						name_done := false
+						// if (f_name.String() != string("") && f_content.String() != string("")){
+						// 	current_feature[f_name.strin]
+						// }
+						var f_name strings.Builder
+						var f_content strings.Builder
 
-						for n := m; n < len(file); n++ {
-							if file[n] == '=' {
-								name_done = true
-								continue
-							}
-
-							if !name_done {
-								//TO-DO: make it not change to string
-								feature_name.WriteString(string(file[n]))
+						content_start := 0
+						for l := m; l < len(file); l++ {
+							if file[l] == '=' {
+								content_start = l + 1
+								break
 							} else {
-								feature_content.WriteString(string(file[n]))
+								f_name.WriteRune(file[l])
 							}
 						}
-						fmt.Println(feature_name.String(), feature_content.String())
 
-						feature["a"] = "b"
-						// feature["feature_name.String()"] = feature_content.String()
+						for y := content_start; y < len(file); y++ {
+							if string(file[y-len("                     /"):y]) == "                     /" {
+								break
+							} else {
+								if t, _ := isFeature(&file, y); t {
+									break
+								}
+								f_content.WriteRune(file[y])
+							}
+						}
+
+						current_feature[f_name.String()] = strings.TrimSuffix(f_content.String(), "\r\n                     /")
 					}
+
 				}
-
 			}
-
-			plasmid.Features = all_features
 
 		}
 
 	}
 
+	plasmid.Features = all_features
 	return plasmid
 }
 

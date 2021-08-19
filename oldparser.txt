@@ -1,12 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
-	"strconv"
-	"strings"
 )
 
 type Reference struct {
@@ -24,7 +23,7 @@ type Plasmid struct {
 	Source     string
 	Organism   string
 	References []Reference
-	Features   []interface{}
+	Features   []map[string]interface{}
 	DNA        string
 }
 
@@ -134,6 +133,15 @@ func asignRestOfTheLine(file *[]rune, pos *int, word string) string {
 	return ""
 }
 
+func isFeature(file *[]rune, pos int) (bool, string) {
+	for k := 0; k < len(feature_types); k++ {
+		if currentWord(file, feature_types[k], pos) {
+			return true, feature_types[k]
+		}
+	}
+	return false, ""
+}
+
 //Shoutout to Lex Fridman
 func lex() *Plasmid {
 
@@ -214,72 +222,83 @@ func lex() *Plasmid {
 
 		if currentWord(&file, "FEATURES", i) {
 
-			//eof = End of Features (position)
-			eof := 0
+			all_features := []map[string]interface{}{}
 
-			//TO-DO: Not loop twice to find the End of Features position
-			for p := i; p < len(file); p++ {
-				if currentWord(&file, "ORIGIN", p) {
-					eof = p
+			feature := map[string]interface{}{}
+			//TO-THINK: Are this many loops necessary? is there a better way to do it?
+			for m := i; m < len(file); m++ {
+				//If you find the DNA section, stop searching for features
+				if currentWord(&file, "ORIGIN", m) {
 					break
 				}
-			}
 
-			//TO-THINK: Are this many loops necessary? is there a better way to do it?
-			for m := i; m < eof; m++ {
-				// nextFeatureFound := false
+				var feature_name bytes.Buffer
+				var feature_content bytes.Buffer
+				//is looping through each feature big brain? or small brain?
+				// for k := 0; k < len(feature_types); k++ {
 
-				for num := range feature_types {
-					if currentWord(&file, feature_types[num], m) {
-						// nextFeatureFound = true
-						break
+				// 	if currentWord(&file, feature_types[k], m) {
+				// 		feature["FeatureType"] = feature_types[k]
+
+				// 		//Before we append add its properties dude lol
+
+				// 		all_features = append(all_features, feature)
+				// 		feature = map[string]interface{}{}
+				// 	}
+				// }
+
+				feature_found, name := isFeature(&file, m)
+
+				if feature_found {
+					feature["FeatureType"] = name
+
+					if _, ok := feature["added"]; ok {
+						all_features = append(all_features, feature)
+						feature = map[string]interface{}{}
+					}
+
+				} else {
+
+					//TO-DO: fix this if so it skips /Qualitifier
+					if file[m] == '/' && file[m+1] != 'Q' {
+						name_done := false
+
+						for n := m + 1; n < len(file); n++ {
+							//If you find the DNA section, stop searching for features
+							if currentWord(&file, "ORIGIN", n) {
+								break
+							}
+
+							if file[n] != '/' {
+								if feature_name.String() == "note" && string(file[n:n+2]) != "\"\n" {
+									//Complete this so it skips after it fins \"\n
+								}
+							}
+
+							if file[n] == '=' {
+								name_done = true
+								continue
+							}
+
+							if !name_done {
+								//TO-DO: make it not change to string
+								feature_name.WriteString(string(file[n]))
+							} else {
+								feature_content.WriteString(string(file[n]))
+							}
+						}
+						fmt.Println("NAME: ", feature_name.String(), "CONTENT: ", feature_content.String())
+
+						//Why is this not executing yo?
+
+						feature["added"] = "true"
+						feature[feature_name.String()] = feature_content.String()
 					}
 				}
 
-				// if nextFeatureFound {
-				// 	break
-				// }
-
-				/*
-
-					for each token
-						if token[i, i-4] = source
-						save_to_next_line()
-
-						until (you reach another feature) {
-							feature_content = ""
-							current_feature_name = ""
-							if (char != /){
-								feature_content += char
-							}else{
-								switch(current_feature_name){
-
-									//Research maps
-									case "source":
-								}
-							}
-						}
-				*/
-
-				if currentWord(&file, "source", m) {
-					fmt.Println("SOURCEE!!!")
-
-					source := new(Source)
-					loc := new(Location)
-
-					nl := nextLine(&file, m)
-					//why tf is split not working
-					loc_string := strings.Split(string((file)[m+len("source"):nl]), "..")
-					start := strconv.Atoi(loc_string[0])
-					end := strconv.Atoi(loc_string[1])
-
-					fmt.Println("SE: ", start, end)
-
-					source.Location = *loc
-
-				}
-
 			}
+
+			plasmid.Features = all_features
 
 		}
 
