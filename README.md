@@ -20,7 +20,10 @@ func main(){
 
 	string_json := gbkToJSON.getAsString(data)
 	fmt.Println(string_json)
-	//This is not implemented yet!
-	go_map := gbkToJSON.getAsMap(data)
+	
+    
+	plasmid := gbkToJSON.getAsPlasmidStruct(data)
+    fmt.Println(plasmid.DNA)
+
 }
 ```

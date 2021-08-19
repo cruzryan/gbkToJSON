@@ -258,6 +258,10 @@ func getAsString(data string) string {
 	return string(p)
 }
 
+func getAsPlasmidStruct(data string) Plasmid {
+	return *lex(data)
+}
+
 func prettyPrint(data interface{}) {
 	var p []byte
 	//    var err := error
