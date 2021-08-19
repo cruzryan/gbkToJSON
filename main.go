@@ -1,4 +1,4 @@
-package main
+package gbkToJSON
 
 import (
 	"encoding/json"
@@ -93,13 +93,11 @@ func shouldIgnore(c rune) bool {
 }
 
 //Shoutout to Lex Fridman
-func lex() *Plasmid {
+func lex(data string) *Plasmid {
 
 	plasmid := new(Plasmid)
 
-	string_data := getFileData("tests_reSources\\addgeneplasmid.gbk")
-
-	file := []rune(string_data)
+	file := []rune(data)
 	all_features := []map[string]interface{}{}
 	// feature := map[string]interface{}{}
 
@@ -248,6 +246,18 @@ func lex() *Plasmid {
 	return plasmid
 }
 
+func getAsString(data string) string {
+
+	plas := lex(data)
+	p, err := json.MarshalIndent(&plas, "", "")
+	if err != nil {
+		fmt.Println(err)
+		//TO-DO: Return an error
+		return ""
+	}
+	return string(p)
+}
+
 func prettyPrint(data interface{}) {
 	var p []byte
 	//    var err := error
@@ -259,7 +269,7 @@ func prettyPrint(data interface{}) {
 	fmt.Printf("%s \n", p)
 }
 
-func main() {
-	plas := lex()
-	prettyPrint(&plas)
-}
+// func main() {
+// 	plas := lex()
+// 	prettyPrint(&plas)
+// }
