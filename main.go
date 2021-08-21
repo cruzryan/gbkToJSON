@@ -1,10 +1,13 @@
 package gbkToJSON
 
+// package main
+
 import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
+	"strconv"
 	"strings"
 )
 
@@ -89,6 +92,18 @@ func shouldIgnore(c rune) bool {
 			return true
 		}
 	}
+	return false
+}
+
+func isAlphaNumeric(c rune) bool {
+	numbers := [...]rune{'1', '2', '3', '4', '5', '6', '7', '8', '9', '0'}
+
+	for l := 0; l < len(numbers); l++ {
+		if c == numbers[l] {
+			return true
+		}
+	}
+
 	return false
 }
 
@@ -197,6 +212,32 @@ func lex(data string) *Plasmid {
 
 			if feature_found {
 
+				var start_loc strings.Builder
+				var end_loc strings.Builder
+				capture_start := true
+
+				//Find when the feature starts and when it should end
+				for o := i + 1; o < len(file); o++ {
+					if file[o] == '\n' {
+						current_feature["start"], _ = strconv.Atoi(start_loc.String())
+						current_feature["end"], _ = strconv.Atoi(end_loc.String())
+						break
+					}
+
+					if file[o-1] == '.' && file[o] == '.' {
+						capture_start = false
+					}
+
+					if isAlpha := isAlphaNumeric(file[o]); isAlpha {
+						if capture_start {
+							start_loc.WriteRune(file[o])
+						} else {
+							end_loc.WriteRune(file[o])
+						}
+					}
+				}
+
+				//Get feature attributes
 				for m := i + 1; m < len(file); m++ {
 
 					//If you find the next feature, break;
@@ -274,6 +315,8 @@ func prettyPrint(data interface{}) {
 }
 
 // func main() {
-// 	plas := lex()
+
+// 	plas_data := getFileData("tests_resources\\addgeneplasmid.gbk")
+// 	plas := lex(plas_data)
 // 	prettyPrint(&plas)
 // }
